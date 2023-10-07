@@ -1,24 +1,26 @@
 package com.example.rickandmorty.views.characters
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.widget.SearchView.OnQueryTextListener
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.rickandmorty.databinding.FragmentRickAndMortyCharacterBinding
 import com.example.rickandmorty.models.Result
 import com.example.rickandmorty.views.location.CharacterLocationFragment
-import org.koin.androidx.viewmodel.ext.android.sharedViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class RickAndMortyCharacterFragment : Fragment(), CharacterSelected {
+class RickAndMortyCharacterFragment : Fragment(), CharacterSelected, OnQueryTextListener {
     private var _binding: FragmentRickAndMortyCharacterBinding? = null
     private val binding: FragmentRickAndMortyCharacterBinding get() = _binding!!
     private lateinit var characterAdapter: CharacterAdapter
-    private val viewModel: CharacterViewModel by sharedViewModel()
+    private val viewModel: CharacterViewModel by viewModel()
 
     companion object {
         fun newInstance() = RickAndMortyCharacterFragment()
@@ -34,15 +36,14 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupObservers()
         setupUI()
+        setupObservers()
     }
 
     private fun setupObservers() {
         with(viewModel) {
             rickAndMortyCharacters.observe(viewLifecycleOwner) { updateCharacters(it) }
             errorMessage.observe(viewLifecycleOwner) { showError(it) }
-            getCharacters()
         }
     }
 
@@ -65,6 +66,17 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected {
             layoutManager = LinearLayoutManager(requireContext())
             characterAdapter = CharacterAdapter(this@RickAndMortyCharacterFragment)
             adapter = characterAdapter
+            addOnScrollListener(onScrollListener)
+        }
+        binding.characterSearch.setOnQueryTextListener(this)
+    }
+
+    private val onScrollListener = object : RecyclerView.OnScrollListener() {
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            super.onScrollStateChanged(recyclerView, newState)
+            if (!recyclerView.canScrollVertically(1) && newState == RecyclerView.SCROLL_STATE_IDLE) {
+                viewModel.getCharacters()
+            }
         }
     }
 
@@ -82,5 +94,19 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected {
                 )
             )
         )?.addToBackStack(null)?.commit()
+    }
+
+    override fun onQueryTextSubmit(query: String?): Boolean {
+        query?.let {
+            viewModel.getCharacters(query)
+        }
+        return false
+    }
+
+    override fun onQueryTextChange(newText: String?): Boolean {
+        if(newText.isNullOrEmpty() || newText.isNullOrBlank()){
+            viewModel.getCharacters("")
+        }
+        return false
     }
 }
