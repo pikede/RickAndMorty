@@ -17,7 +17,7 @@ class CharacterViewModel(private val rickAndMortyService: RickAndMortyService) :
     val rickAndMortyCharacters: LiveData<List<Result>> get() = _rickAndMortyCharacters
     private val _rickAndMortyCharacters = MutableLiveData<List<Result>>()
     private val api by lazy { rickAndMortyService.getPlayerApi() }
-    private var page = 1
+    private var currentPaginatedPage = 1
     private var job: Job? = null
     private var characterResults = mutableListOf<Result>()
     private var characterQueryName = ""
@@ -48,9 +48,9 @@ class CharacterViewModel(private val rickAndMortyService: RickAndMortyService) :
         }
         val isNotEmpty = characterQueryName.isNotEmpty() && characterQueryName.isNotBlank()
         return if (isNotEmpty) {
-            api.getCharactersWithQueryName(page++, characterQueryName)
+            api.getCharactersWithQueryName(currentPaginatedPage++, characterQueryName)
         } else {
-            api.getCharacters(page++)
+            api.getCharacters(currentPaginatedPage++)
         }
     }
 
@@ -70,7 +70,7 @@ class CharacterViewModel(private val rickAndMortyService: RickAndMortyService) :
     }
 
     private fun clearList() {
-        page = 1
+        currentPaginatedPage = 1
         characterResults.clear()
         _rickAndMortyCharacters.postValue(characterResults)
     }
