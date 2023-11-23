@@ -5,11 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.example.rickandmorty.R
 import com.example.rickandmorty.databinding.FragmentCharacterLocationBinding
 import com.example.rickandmorty.models.Locations
+import com.example.rickandmorty.views.hideView
+import com.example.rickandmorty.views.showView
 import com.squareup.picasso.Picasso
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -38,21 +39,40 @@ class CharacterLocationFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupObservers()
+        getLocations()
+    }
+
+    private fun getLocations() {
+        arguments?.getInt(CharacterID)?.let {
+            viewModel.getLocations(it)
+        }
     }
 
     private fun setupObservers() {
         with(viewModel) {
             characterLocation.observe(viewLifecycleOwner) { showLocations(it) }
             errorMessage.observe(viewLifecycleOwner) { showError(it) }
-            arguments?.getInt(CharacterID)?.let {
-                getLocations(it)
-            }
         }
     }
 
     private fun showLocations(locations: Locations?) {
-        binding.locationsProgress.isVisible = true
+        showProgressBar()
         showCharacterImage()
+        showLocationInformation(locations)
+        hideProgressBar()
+    }
+
+    private fun showProgressBar() {
+        binding.locationsProgress.showView()
+    }
+
+    private fun showCharacterImage() {
+        arguments?.getString(CharacterImage)?.let {
+            Picasso.get().load(it).fit().into(binding.characterImage)
+        }
+    }
+
+    private fun showLocationInformation(locations: Locations?) {
         locations?.let {
             with(binding) {
                 locationName.text = it.name
@@ -62,13 +82,10 @@ class CharacterLocationFragment : Fragment() {
             }
             it.name
         } ?: showError(getString(R.string.no_locations_available))
-        binding.locationsProgress.isVisible = false
     }
 
-    private fun showCharacterImage() {
-        arguments?.getString(CharacterImage)?.let {
-            Picasso.get().load(it).fit().into(binding.characterImage)
-        }
+    private fun hideProgressBar() {
+        binding.locationsProgress.hideView()
     }
 
     private fun showError(errorMessage: String) {

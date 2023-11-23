@@ -7,13 +7,15 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.widget.SearchView.OnQueryTextListener
 import androidx.core.os.bundleOf
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.rickandmorty.databinding.FragmentRickAndMortyCharacterBinding
 import com.example.rickandmorty.models.Result
+import com.example.rickandmorty.views.hideView
 import com.example.rickandmorty.views.location.CharacterLocationFragment
+import com.example.rickandmorty.views.showView
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class RickAndMortyCharacterFragment : Fragment(), CharacterSelected, OnQueryTextListener {
@@ -36,21 +38,25 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected, OnQueryText
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupUI()
         setupObservers()
+        setupUI()
     }
 
     private fun setupObservers() {
-        with(viewModel) {
-            rickAndMortyCharacters.observe(viewLifecycleOwner) { updateCharacters(it) }
-            errorMessage.observe(viewLifecycleOwner) { showError(it) }
+        lifecycleScope.launchWhenStarted {
+            viewModel.charactersUIState.collect {
+                when (it) {
+                    is CharacterViewModel.CharactersState.Success -> updateCharacters(it.characters)
+                    is CharacterViewModel.CharactersState.Error -> showError(it.errorMessage)
+                }
+            }
         }
     }
 
     private fun updateCharacters(characters: List<Result>) {
-        binding.loadingProgress.isVisible = true
+        binding.loadingProgress.showView()
         characterAdapter.updateCharacters(characters)
-        binding.loadingProgress.isVisible = false
+        binding.loadingProgress.hideView()
     }
 
     private fun showError(errorMessage: String) {
@@ -105,7 +111,7 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected, OnQueryText
 
     override fun onQueryTextChange(newText: String?): Boolean {
         // this loads more characters when the text field gets empty
-        if(newText.isNullOrEmpty() || newText.isNullOrBlank()){
+        if (newText.isNullOrEmpty() || newText.isNullOrBlank()) {
             viewModel.getCharacters("")
         }
         return false
