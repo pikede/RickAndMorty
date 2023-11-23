@@ -1,4 +1,4 @@
-package com.example.rickandmorty.network
+package com.example.rickandmorty.data.network
 
 import com.example.rickandmorty.models.Characters
 import com.example.rickandmorty.models.Locations

@@ -9,7 +9,7 @@ class RickAndMortyApplication : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@RickAndMortyApplication)
-            modules(AppModules)
+            modules(appModules)
         }
     }
 }
