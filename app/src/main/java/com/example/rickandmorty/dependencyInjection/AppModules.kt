@@ -5,5 +5,6 @@ val appModules = listOf(
     databaseModule,
     daoModules,
     viewModelModules,
-    repositoryModule
+    repositoryModule,
+    coroutineModule
 )
