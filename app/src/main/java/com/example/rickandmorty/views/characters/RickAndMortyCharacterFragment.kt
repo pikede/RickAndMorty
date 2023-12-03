@@ -106,7 +106,6 @@ class RickAndMortyCharacterFragment : Fragment(), CharacterSelected, OnQueryText
     }
 
     override fun onQueryTextChange(newText: String?): Boolean {
-        // this loads more characters when the text field gets empty
         if (newText.isNullOrEmpty() || newText.isNullOrBlank()) {
             getCharacters("")
         }
