@@ -1,9 +1,10 @@
 package com.example.rickandmorty.views.characters
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.rickandmorty.data.Repository
-import com.example.rickandmorty.models.Characters
+import com.example.rickandmorty.data.ResultResponse
 import com.example.rickandmorty.models.Result
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,11 +15,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import org.koin.java.KoinJavaComponent.inject
-import retrofit2.Response
 import kotlin.coroutines.CoroutineContext
 
-class CharacterViewModel() : ViewModel(), CoroutineScope {
+class CharacterViewModel(private val repository: Repository) : ViewModel(), CoroutineScope {
     sealed interface CharactersState {
         data class Success(val characters: List<Result>) : CharactersState
         data class Error(val errorMessage: String) : CharactersState
@@ -26,13 +25,14 @@ class CharacterViewModel() : ViewModel(), CoroutineScope {
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.IO + SupervisorJob()
-    private val repository: Repository by inject(Repository::class.java)
     private var characterResults = mutableListOf<Result>()
     private val _charactersUIState =
         MutableSharedFlow<CharactersState>()
     val charactersUIState: SharedFlow<CharactersState> = _charactersUIState
     private var job: Job? = null
-    private var characterQueryName = ""
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    var characterQueryName = ""
 
 
     init {
@@ -47,7 +47,7 @@ class CharacterViewModel() : ViewModel(), CoroutineScope {
             updateName(characterName)
             val isNotEmpty = characterQueryName.isNotEmpty() && characterQueryName.isNotBlank()
             val playerResponse = if (isNotEmpty) {
-                repository.getCharacterWithQueryNameResponse(characterQueryName)
+                repository.getCharactersWithName(characterQueryName)
             } else {
                 repository.getCharacters()
             }
@@ -55,47 +55,46 @@ class CharacterViewModel() : ViewModel(), CoroutineScope {
         }
     }
 
-    private fun updateName(characterName: String) {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun updateName(characterName: String) {
         val changed = characterName != characterQueryName
         if (changed) {
             characterQueryName = characterName
-            clearList()
+            launch {
+                clearList()
+            }
         }
     }
 
-    private suspend fun handleResponse(playerResponse: Flow<Response<Characters>>) {
+    private suspend fun handleResponse(playerResponse: Flow<ResultResponse<Result>>) {
         playerResponse
             .catch {
                 errorGettingCharacters(it.message ?: it.toString())
             }
             .collect {
-                when (it.isSuccessful) {
-                    true -> updateSuccessfulCharacters(it)
-                    else -> it.errorBody()?.let { errorGettingCharacters(it.toString()) }
+                when (it) {
+                    is ResultResponse.SuccessList -> updateSuccessfulCharacters(it.data)
+                    is ResultResponse.Error -> it.errorMessage?.let { errorMessage ->
+                        errorGettingCharacters(
+                            errorMessage
+                        )
+                    }
                 }
             }
     }
 
-    private fun updateSuccessfulCharacters(playerResponse: Response<Characters>) {
-        playerResponse.body()?.results?.let {
-            characterResults.addAll(it)
-            launch {
-                _charactersUIState.emit(CharactersState.Success(characterResults))
-            }
-        }
+    private suspend fun updateSuccessfulCharacters(characters: List<Result>) {
+        characterResults.addAll(characters)
+        _charactersUIState.emit(CharactersState.Success(characterResults))
     }
 
-    private fun clearList() {
+    private suspend fun clearList() {
         repository.resetPage()
         characterResults.clear()
-        launch {
-            _charactersUIState.emit(CharactersState.Success(characterResults))
-        }
+        _charactersUIState.emit(CharactersState.Success(characterResults))
     }
 
-    private fun errorGettingCharacters(errorMessage: String) {
-        launch {
-            _charactersUIState.emit(CharactersState.Error(errorMessage))
-        }
+    private suspend fun errorGettingCharacters(errorMessage: String) {
+        _charactersUIState.emit(CharactersState.Error(errorMessage))
     }
 }
